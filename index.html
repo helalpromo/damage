@@ -1,3 +1,4 @@
+```html
 <!DOCTYPE html>
 <html lang="bn">
 <head>
@@ -581,10 +582,49 @@
     window.fsModule = { collection, getDocs, setDoc, doc };
     
     const badge = document.getElementById('firebaseConnectionBadge');
-    if (badge) {
-        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500"></span> Cloud Connected`;
-        badge.className = "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700 border border-emerald-200";
-    }
+    
+    // Cloud Data Sync Initializer (ফিক্সড ও সিকিউর লজিক)
+    window.initCloudData = async function() {
+        try {
+            if(!window.db || !window.fsModule) return;
+            const querySnapshot = await window.fsModule.getDocs(window.fsModule.collection(window.db, "goodmart_data"));
+            
+            let cloudFound = false;
+            querySnapshot.forEach((docSnap) => {
+                const data = docSnap.data();
+                if(docSnap.id === 'state' && data) {
+                    cloudFound = true;
+                    if(data.companies && data.companies.length > 0) companies = data.companies;
+                    if(data.users && data.users.length > 0) users = data.users;
+                    if(data.products && data.products.length > 0) products = data.products;
+                    if(data.damages) damages = data.damages;
+                    if(data.settlements) settlements = data.settlements;
+                    
+                    saveDataLocally();
+                }
+            });
+
+            if(!cloudFound) {
+                await syncToCloud();
+            }
+
+            if(badge) {
+                badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500"></span> Cloud Connected`;
+                badge.className = "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700 border border-emerald-200";
+            }
+
+            if(loggedInUser) {
+                refreshDropdowns();
+                renderAll();
+            }
+        } catch(err) {
+            console.warn("Cloud Sync Read Warning:", err);
+            if(badge) {
+                badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-red-500"></span> Sync Error`;
+                badge.className = "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700 border border-red-200";
+            }
+        }
+    };
 
     if(window.initCloudData) {
         window.initCloudData();
@@ -595,7 +635,7 @@
     // Core Application State
     let companies = JSON.parse(localStorage.getItem('gm_companies')) || ['ACI Logistics', 'Dabur Bangladesh', 'Kodomo', 'Tasty Treat', 'Nivea'];
     
-    // User Accounts - Admin helal/GoodMart11 & Staff staff1/1234 intact in DB
+    // User Accounts - Admin helal/GoodMart11 & Staff staff1/1234
     let users = JSON.parse(localStorage.getItem('gm_users')) || [
         { name: 'Helal Admin', username: 'helal', password: 'GoodMart11', role: 'admin', permissions: { damage: true, product: true, settlement: true, backup: true }, assignedCompanies: ['ALL'] },
         { name: 'Kamarpara Staff', username: 'staff1', password: '1234', role: 'staff', permissions: { damage: true, product: true, settlement: true, backup: false }, assignedCompanies: ['Dabur Bangladesh', 'Kodomo'] }
@@ -609,32 +649,6 @@
     let damages = JSON.parse(localStorage.getItem('gm_damages')) || [];
     let settlements = JSON.parse(localStorage.getItem('gm_settlements')) || [];
     let loggedInUser = null;
-
-    // Cloud Data Sync Initializer
-    window.initCloudData = async function() {
-        try {
-            if(!window.db || !window.fsModule) return;
-            const querySnapshot = await window.fsModule.getDocs(window.fsModule.collection(window.db, "goodmart_data"));
-            querySnapshot.forEach((docSnap) => {
-                const data = docSnap.data();
-                if(docSnap.id === 'state') {
-                    if(data.companies) companies = data.companies;
-                    if(data.users) users = data.users;
-                    if(data.products) products = data.products;
-                    if(data.damages) damages = data.damages;
-                    if(data.settlements) settlements = data.settlements;
-                    
-                    saveDataLocally();
-                    if(loggedInUser) {
-                        refreshDropdowns();
-                        renderAll();
-                    }
-                }
-            });
-        } catch(err) {
-            console.warn("Cloud Sync Read Warning:", err);
-        }
-    };
 
     async function syncToCloud() {
         saveDataLocally();
