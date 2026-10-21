@@ -1,0 +1,1169 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Good Mart Enterprise - Cloud Distribution System</title>
+    <!-- Tailwind CSS for modern styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- SheetJS for Excel Export/Import -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; color: #0f172a; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col antialiased">
+
+<!-- Authentication Overlay Modal -->
+<div id="authScreen" class="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl border border-slate-100 max-w-md w-full p-8 transition-all">
+        <div class="text-center mb-8">
+            <div class="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-500/30 text-white text-2xl font-bold">
+                <i class="fa-solid fa-boxes-packing"></i>
+            </div>
+            <h2 class="text-2xl font-bold text-slate-800 tracking-tight">গুড মার্ট এন্টারপ্রাইজ</h2>
+            <p class="text-xs text-slate-500 mt-1 uppercase tracking-wider font-semibold">Cloud Distribution System</p>
+        </div>
+
+        <form id="loginForm" onsubmit="handleLogin(event)" class="space-y-5">
+            <div>
+                <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-2">ইউজারনেম (Username)</label>
+                <div class="relative">
+                    <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
+                        <i class="fa-solid fa-user text-sm"></i>
+                    </span>
+                    <input type="text" id="loginUser" autocomplete="username" class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition" placeholder="ইউজারনেম লিখুন" required>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-2">পাসওয়ার্ড (Password)</label>
+                <div class="relative">
+                    <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
+                        <i class="fa-solid fa-lock text-sm"></i>
+                    </span>
+                    <input type="password" id="loginPass" autocomplete="current-password" class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition" placeholder="পাসওয়ার্ড লিখুন" required>
+                </div>
+            </div>
+
+            <button type="submit" class="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-lg shadow-blue-600/30 hover:shadow-blue-600/40 active:scale-[0.99] transition flex items-center justify-center gap-2">
+                <span>লগইন করুন</span>
+                <i class="fa-solid fa-arrow-right text-sm"></i>
+            </button>
+        </form>
+
+        <div id="loginError" class="hidden mt-4 p-3 bg-red-50 border border-red-200 text-red-600 text-xs rounded-xl text-center font-medium">
+            <i class="fa-solid fa-circle-exclamation mr-1"></i> ভুল ইউজারনেম অথবা পাসওয়ার্ড!
+        </div>
+    </div>
+</div>
+
+<!-- Main Application Workspace -->
+<div id="mainAppContainer" class="hidden flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 lg:p-8">
+    <!-- Top Header -->
+    <header class="bg-white rounded-2xl p-5 md:p-6 shadow-sm border border-slate-200/80 mb-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center text-white text-xl shadow-md shadow-blue-500/20">
+                <i class="fa-solid fa-boxes-stacked"></i>
+            </div>
+            <div>
+                <div class="flex items-center gap-3">
+                    <h1 class="text-xl md:text-2xl font-bold text-slate-800">গুড মার্ট এন্টারপ্রাইজ</h1>
+                    <span id="firebaseConnectionBadge" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-700 border border-amber-200">
+                        <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                        Connecting Cloud...
+                    </span>
+                </div>
+                <p class="text-xs text-slate-500 mt-0.5">ড্যামেজ ম্যানেজমেন্ট & ডিস্ট্রিবিউশন ট্র্যাকবোর্ড</p>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-3 w-full md:w-auto justify-between md:justify-end border-t md:border-t-0 pt-3 md:pt-0 border-slate-100">
+            <div class="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200">
+                <div class="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-bold">
+                    <i class="fa-solid fa-user-shield"></i>
+                </div>
+                <div>
+                    <p id="currentUserBadge" class="text-xs font-bold text-slate-700">User</p>
+                    <p id="currentUserRole" class="text-[10px] text-slate-400 uppercase font-semibold">Staff</p>
+                </div>
+            </div>
+            <button onclick="logout()" class="px-3.5 py-2 text-xs font-semibold text-slate-600 hover:text-red-600 bg-slate-100 hover:bg-red-50 rounded-xl border border-slate-200 hover:border-red-200 transition flex items-center gap-1.5">
+                <i class="fa-solid fa-right-from-bracket"></i>
+                <span>লগআউট</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Metrics Cards -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-2 h-full bg-red-500"></div>
+            <p class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">মোট ড্যামেজ স্টক (মূল্য)</p>
+            <h3 class="text-2xl font-bold text-slate-800" id="totalDamageVal">৳ 0</h3>
+            <p class="text-[11px] text-slate-400 mt-2"><i class="fa-solid fa-calculator text-red-500 mr-1"></i>বর্তমান ড্যামেজ ইনভেন্টরি</p>
+        </div>
+
+        <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-2 h-full bg-amber-500"></div>
+            <p class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">কোম্পানিতে দাবীকৃত মোট</p>
+            <h3 class="text-2xl font-bold text-slate-800" id="totalReturnedVal">৳ 0</h3>
+            <p class="text-[11px] text-slate-400 mt-2"><i class="fa-solid fa-file-invoice-dollar text-amber-500 mr-1"></i>স্টেটমেন্ট জেনারেটকৃত দাবি</p>
+        </div>
+
+        <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-2 h-full bg-emerald-500"></div>
+            <p class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">কোম্পানি থেকে প্রাপ্ত মোট</p>
+            <h3 class="text-2xl font-bold text-emerald-600" id="totalSettledVal">৳ 0</h3>
+            <p class="text-[11px] text-slate-400 mt-2"><i class="fa-solid fa-circle-check text-emerald-500 mr-1"></i>নগদ / কিস্তিতে পরিশোধিত</p>
+        </div>
+
+        <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-2 h-full bg-blue-500"></div>
+            <p class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">অবশিষ্ট পাওনা / ডিউ (Due)</p>
+            <h3 class="text-2xl font-bold text-blue-600" id="totalPendingVal">৳ 0</h3>
+            <p class="text-[11px] text-slate-400 mt-2"><i class="fa-solid fa-clock text-blue-500 mr-1"></i>কোম্পানি থেকে বাকি পাওনা</p>
+        </div>
+    </div>
+
+    <!-- Tab Bar -->
+    <div class="flex items-center gap-2 overflow-x-auto pb-2 mb-6 custom-scrollbar" id="navTabsContainer">
+        <button class="tab-btn px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap bg-blue-600 text-white shadow-md shadow-blue-500/20 transition flex items-center gap-2" onclick="switchTab('damageTab')" id="btn-damageTab">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            <span>১. ড্যামেজ ম্যানেজমেন্ট</span>
+        </button>
+        <button class="tab-btn px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap bg-white text-slate-600 hover:bg-slate-50 border border-slate-200 transition flex items-center gap-2" onclick="switchTab('productTab')" id="btn-productTab">
+            <i class="fa-solid fa-box-archive"></i>
+            <span>২. পণ্য ব্যবস্থাপনা</span>
+        </button>
+        <button class="tab-btn px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap bg-white text-slate-600 hover:bg-slate-50 border border-slate-200 transition flex items-center gap-2" onclick="switchTab('settlementTab')" id="btn-settlementTab">
+            <i class="fa-solid fa-hand-holding-dollar"></i>
+            <span>৩. কোম্পানি সেটেলমেন্ট</span>
+        </button>
+        <button class="tab-btn px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap bg-white text-slate-600 hover:bg-slate-50 border border-slate-200 transition flex items-center gap-2" onclick="switchTab('companySetupTab')" id="btn-companySetupTab">
+            <i class="fa-solid fa-building"></i>
+            <span>৪. কোম্পানি সেটআপ (Admin)</span>
+        </button>
+        <button class="tab-btn px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap bg-white text-slate-600 hover:bg-slate-50 border border-slate-200 transition flex items-center gap-2" onclick="switchTab('userTab')" id="btn-userTab">
+            <i class="fa-solid fa-users-gear"></i>
+            <span>৫. ইউজার ম্যানেজমেন্ট (Admin)</span>
+        </button>
+        <button class="tab-btn px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap bg-white text-slate-600 hover:bg-slate-50 border border-slate-200 transition flex items-center gap-2" onclick="switchTab('backupTab')" id="btn-backupTab">
+            <i class="fa-solid fa-file-excel"></i>
+            <span>৬. এক্সেল ব্যাকআপ</span>
+        </button>
+    </div>
+
+    <!-- TAB 1: Damage Management -->
+    <div id="damageTab" class="space-y-6 tab-content">
+        <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm">
+            <h2 class="text-base font-bold text-slate-800 mb-4 flex items-center gap-2">
+                <i class="fa-solid fa-square-plus text-blue-600"></i>
+                <span>ড্যামেজ পণ্যের এন্ট্রি দিন</span>
+            </h2>
+            <form id="damageForm" class="space-y-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1.5">কোম্পানি (অনুমোদিত)</label>
+                        <select id="dmgCompany" onchange="loadProductDropdown()" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-700 focus:outline-none focus:border-blue-500 focus:bg-white" required></select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1.5">পণ্য</label>
+                        <select id="dmgProduct" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-700 focus:outline-none focus:border-blue-500 focus:bg-white" required></select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1.5">পরিমাণ (Qty)</label>
+                        <input type="number" id="dmgQty" min="1" placeholder="যেমন: 5" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-700 focus:outline-none focus:border-blue-500 focus:bg-white" required>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1.5">ড্যামেজের কারণ</label>
+                        <select id="dmgReason" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-700 focus:outline-none focus:border-blue-500 focus:bg-white">
+                            <option value="Date Expired">Date Expired (মেয়াদোত্তীর্ণ)</option>
+                            <option value="Physical Damage">Physical Damage (ভাঙা/ফাঁটা)</option>
+                            <option value="জমাট বাঁধা">জমাট বাঁধা (Clotted)</option>
+                            <option value="অন্যান্য">অন্যান্য (Other)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1.5">তারিখ</label>
+                        <input type="date" id="dmgDate" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-700 focus:outline-none focus:border-blue-500 focus:bg-white" required>
+                    </div>
+                </div>
+                <div class="flex justify-end">
+                    <button type="submit" id="submitDmgBtn" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl shadow-md shadow-blue-500/20 transition flex items-center gap-2">
+                        <i class="fa-solid fa-floppy-disk"></i>
+                        <span>ড্যামেজ এন্ট্রি সেভ করুন</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm">
+            <h2 class="text-base font-bold text-slate-800 mb-4 flex items-center gap-2">
+                <i class="fa-solid fa-filter text-blue-600"></i>
+                <span>ড্যামেজ স্টক ফিল্টারিং & তালিকা</span>
+            </h2>
+
+            <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-5">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end mb-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1.5">১. কোম্পানি ফিল্টার:</label>
+                        <select id="filterCompany" onchange="renderDamageTable()" class="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-700 focus:outline-none focus:border-blue-500">
+                            <option value="ALL">অনুমোদিত সকল কোম্পানি</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1.5">২. সময়সীমা ফিল্টার:</label>
+                        <select id="filterTimeRange" onchange="handleTimeRangeChange()" class="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-700 focus:outline-none focus:border-blue-500">
+                            <option value="ALL">অল টাইম (সমস্ত ডাটা)</option>
+                            <option value="TODAY">আজকের ডাটা (Today)</option>
+                            <option value="CUSTOM">নির্দিষ্ট তারিখ / রেঞ্জ (Custom Range)</option>
+                        </select>
+                    </div>
+                    <div class="custom-date-field hidden">
+                        <label class="block text-xs font-semibold text-slate-600 mb-1.5">শুরুর তারিখ (From):</label>
+                        <input type="date" id="filterStartDate" onchange="renderDamageTable()" class="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-700 focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div class="custom-date-field hidden">
+                        <label class="block text-xs font-semibold text-slate-600 mb-1.5">শেষের তারিখ (To):</label>
+                        <input type="date" id="filterEndDate" onchange="renderDamageTable()" class="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-700 focus:outline-none focus:border-blue-500">
+                    </div>
+                </div>
+
+                <div class="flex flex-wrap items-center justify-between gap-3 bg-gradient-to-r from-blue-700 to-blue-600 text-white p-3.5 rounded-xl shadow-md">
+                    <span id="filteredItemsCount" class="text-xs font-semibold"><i class="fa-solid fa-list-check mr-1.5"></i>মোট এন্ট্রি: 0 টি</span>
+                    <span id="filteredTotalDP" class="text-sm font-bold"><i class="fa-solid fa-sack-dollar mr-1.5"></i>ফিল্টারকৃত মোট DP মূল্য: ৳ 0</span>
+                    <button onclick="resetFilters()" class="text-xs bg-white/20 hover:bg-white/30 text-white font-medium px-3 py-1 rounded-lg transition">
+                        <i class="fa-solid fa-rotate-left mr-1"></i> রিসেট ফিল্টার
+                    </button>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto rounded-xl border border-slate-200 custom-scrollbar">
+                <table class="w-full text-left border-collapse text-xs">
+                    <thead>
+                        <tr class="bg-slate-100 text-slate-700 font-semibold border-b border-slate-200">
+                            <th class="p-3.5">তারিখ</th>
+                            <th class="p-3.5">কোম্পানি</th>
+                            <th class="p-3.5">পণ্য</th>
+                            <th class="p-3.5">পরিমাণ</th>
+                            <th class="p-3.5">কারণ</th>
+                            <th class="p-3.5">DP রেট</th>
+                            <th class="p-3.5">মোট DP মূল্য</th>
+                            <th class="p-3.5 text-center">অ্যাকশন</th>
+                        </tr>
+                    </thead>
+                    <tbody id="damageTableBody" class="divide-y divide-slate-200 text-slate-700">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB 2: Product Management -->
+    <div id="productTab" class="space-y-6 tab-content hidden">
+        <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm">
+            <h2 class="text-base font-bold text-slate-800 mb-1 flex items-center gap-2">
+                <i class="fa-solid fa-box text-blue-600"></i>
+                <span>নতুন পণ্য যুক্ত করুন</span>
+            </h2>
+            <p class="text-xs text-slate-500 mb-4">* ইউজারগণ তাদের অনুমোদিত কোম্পানিতে নতুন পণ্য যোগ করতে পারবেন।</p>
+
+            <form id="productForm" class="space-y-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1.5">কোম্পানি (অনুমোদিত)</label>
+                        <select id="prodCompany" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-700 focus:outline-none focus:border-blue-500" required></select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1.5">পণ্যের নাম</label>
+                        <input type="text" id="prodName" placeholder="যেমন: Dabur Red Paste 100g" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-700 focus:outline-none focus:border-blue-500" required>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1.5">MRP Price (৳)</label>
+                        <input type="number" step="0.01" id="prodMRP" placeholder="0.00" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-700 focus:outline-none focus:border-blue-500" required>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1.5">Dealer Price (DP) (৳)</label>
+                        <input type="number" step="0.01" id="prodDP" placeholder="0.00" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-700 focus:outline-none focus:border-blue-500" required>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1.5">Trade Price (TP) (৳)</label>
+                        <input type="number" step="0.01" id="prodTP" placeholder="0.00" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-700 focus:outline-none focus:border-blue-500" required>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1.5">মন্তব্য / নোট (Optional)</label>
+                        <input type="text" id="prodComment" placeholder="মন্তব্য লিখুন..." class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-700 focus:outline-none focus:border-blue-500">
+                    </div>
+                </div>
+                <div class="flex justify-end">
+                    <button type="submit" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl shadow-md shadow-blue-500/20 transition flex items-center gap-2">
+                        <i class="fa-solid fa-plus"></i>
+                        <span>পণ্য যোগ করুন</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm">
+            <h2 class="text-base font-bold text-slate-800 mb-4 flex items-center gap-2">
+                <i class="fa-solid fa-list text-blue-600"></i>
+                <span>সংরক্ষিত পণ্যের তালিকা</span>
+            </h2>
+            <div class="overflow-x-auto rounded-xl border border-slate-200 custom-scrollbar">
+                <table class="w-full text-left border-collapse text-xs">
+                    <thead>
+                        <tr class="bg-slate-100 text-slate-700 font-semibold border-b border-slate-200">
+                            <th class="p-3.5">কোম্পানি</th>
+                            <th class="p-3.5">পণ্যের নাম</th>
+                            <th class="p-3.5">MRP</th>
+                            <th class="p-3.5">DP রেট</th>
+                            <th class="p-3.5">TP রেট</th>
+                            <th class="p-3.5">মন্তব্য</th>
+                        </tr>
+                    </thead>
+                    <tbody id="productTableBody" class="divide-y divide-slate-200 text-slate-700">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB 3: Settlement & Statement -->
+    <div id="settlementTab" class="space-y-6 tab-content hidden">
+        <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm">
+            <h2 class="text-base font-bold text-slate-800 mb-4 flex items-center gap-2">
+                <i class="fa-solid fa-file-invoice-dollar text-blue-600"></i>
+                <span>কোম্পানি সেটেলমেন্ট ও স্টেটমেন্ট জেনারেশন</span>
+            </h2>
+
+            <form id="settlementForm" class="space-y-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1.5">কোম্পানি সিলেক্ট করুন</label>
+                        <select id="stlCompany" onchange="updateSettlementClaimedAmount()" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-700 focus:outline-none focus:border-blue-500" required></select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1.5">দাবিকৃত মোট মূল্য (DP - অটো)</label>
+                        <input type="number" step="0.01" id="claimedAmount" readonly class="w-full p-2.5 bg-slate-100 border border-slate-200 rounded-xl text-xs font-bold text-blue-700 focus:outline-none" required>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1.5">প্রথম কিস্তি / পরিশোধিত মূল্য (Received)</label>
+                        <input type="number" step="0.01" id="receivedAmount" placeholder="৳ 0.00" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-700 focus:outline-none focus:border-blue-500" required>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1.5">তারিখ</label>
+                        <input type="date" id="stlDate" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-700 focus:outline-none focus:border-blue-500" required>
+                    </div>
+                    <div class="sm:col-span-2">
+                        <label class="block text-xs font-semibold text-slate-600 mb-1.5">নোট / প্রতিনিধি তথ্য</label>
+                        <input type="text" id="stlNote" placeholder="যেমন: প্রতিনিধি নাম ও পেমেন্ট নোট..." class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-700 focus:outline-none focus:border-blue-500">
+                    </div>
+                </div>
+                <div class="flex justify-end">
+                    <button type="submit" id="submitStlBtn" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl shadow-md shadow-emerald-600/20 transition flex items-center gap-2">
+                        <i class="fa-solid fa-check-circle"></i>
+                        <span>স্টেটমেন্ট জেনারেট করুন & ড্যামেজ ক্লিয়ার করুন</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm">
+            <h2 class="text-base font-bold text-slate-800 mb-4 flex items-center gap-2">
+                <i class="fa-solid fa-clock-rotate-left text-blue-600"></i>
+                <span>সেটেলমেন্ট ও কিস্তি পেমেন্ট ইতিহাস</span>
+            </h2>
+            <div class="overflow-x-auto rounded-xl border border-slate-200 custom-scrollbar">
+                <table class="w-full text-left border-collapse text-xs">
+                    <thead>
+                        <tr class="bg-slate-100 text-slate-700 font-semibold border-b border-slate-200">
+                            <th class="p-3.5">তারিখ</th>
+                            <th class="p-3.5">কোম্পানি</th>
+                            <th class="p-3.5">মোট দাবি (DP)</th>
+                            <th class="p-3.5">মোট প্রাপ্ত</th>
+                            <th class="p-3.5">বাকি (Due)</th>
+                            <th class="p-3.5">স্ট্যাটাস</th>
+                            <th class="p-3.5 text-center">অ্যাকশন</th>
+                        </tr>
+                    </thead>
+                    <tbody id="settlementTableBody" class="divide-y divide-slate-200 text-slate-700">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB 4: Company Setup (Admin Only) -->
+    <div id="companySetupTab" class="space-y-6 tab-content hidden">
+        <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm max-w-xl">
+            <h2 class="text-base font-bold text-slate-800 mb-4 flex items-center gap-2">
+                <i class="fa-solid fa-building-circle-check text-blue-600"></i>
+                <span>নতুন কোম্পানি যুক্ত করুন (Admin Only)</span>
+            </h2>
+            <form id="companyForm" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1.5">কোম্পানির নাম</label>
+                    <input type="text" id="compName" placeholder="যেমন: ACI, Dabur, Kodomo" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-700 focus:outline-none focus:border-blue-500" required>
+                </div>
+                <button type="submit" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl shadow-md shadow-blue-500/20 transition flex items-center gap-2">
+                    <i class="fa-solid fa-plus"></i>
+                    <span>কোম্পানি যোগ করুন</span>
+                </button>
+            </form>
+        </div>
+
+        <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm max-w-2xl">
+            <h2 class="text-base font-bold text-slate-800 mb-4 flex items-center gap-2">
+                <i class="fa-solid fa-city text-blue-600"></i>
+                <span>সংরক্ষিত কোম্পানি তালিকা</span>
+            </h2>
+            <div class="overflow-x-auto rounded-xl border border-slate-200 custom-scrollbar">
+                <table class="w-full text-left border-collapse text-xs">
+                    <thead>
+                        <tr class="bg-slate-100 text-slate-700 font-semibold border-b border-slate-200">
+                            <th class="p-3.5">কোম্পানির নাম</th>
+                            <th class="p-3.5 text-center">অ্যাকশন</th>
+                        </tr>
+                    </thead>
+                    <tbody id="companyTableBody" class="divide-y divide-slate-200 text-slate-700">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB 5: User Management (Admin Only) -->
+    <div id="userTab" class="space-y-6 tab-content hidden">
+        <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm">
+            <h2 class="text-base font-bold text-slate-800 mb-4 flex items-center gap-2" id="userFormTitle">
+                <i class="fa-solid fa-user-plus text-blue-600"></i>
+                <span>নতুন ইউজার তৈরি / পারমিশন এডিট করুন</span>
+            </h2>
+
+            <form id="userForm" class="space-y-5">
+                <input type="hidden" id="editUserIndex" value="-1">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1.5">পূর্ণ নাম (Full Name)</label>
+                        <input type="text" id="newUserName" placeholder="ইউজারের নাম" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-700 focus:outline-none focus:border-blue-500" required>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1.5">ইউজারনেম (Username)</label>
+                        <input type="text" id="newUserUsername" placeholder="লগইন আইডি" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-700 focus:outline-none focus:border-blue-500" required>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1.5">পাসওয়ার্ড (Password)</label>
+                        <input type="password" id="newUserPassword" placeholder="পাসওয়ার্ড" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-700 focus:outline-none focus:border-blue-500" required>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1.5">রোল (Role)</label>
+                        <select id="newUserRole" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-700 focus:outline-none focus:border-blue-500">
+                            <option value="staff">Staff / Restricted User</option>
+                            <option value="admin">Administrator</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-2">১. ফিচার এক্সেস পারমিশন (Feature Permissions):</label>
+                    <div class="flex flex-wrap gap-4 bg-slate-50 p-3.5 rounded-xl border border-slate-200 text-xs text-slate-700">
+                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="permDamage" checked class="rounded text-blue-600 focus:ring-0"> ড্যামেজ ম্যানেজমেন্ট</label>
+                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="permProduct" checked class="rounded text-blue-600 focus:ring-0"> পণ্য ব্যবস্থাপনা</label>
+                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="permSettlement" checked class="rounded text-blue-600 focus:ring-0"> সেটেলমেন্ট ও স্টেটমেন্ট</label>
+                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="permBackup" class="rounded text-blue-600 focus:ring-0"> এক্সেল ব্যাকআপ</label>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-2">২. অনুমোদিত কোম্পানি নির্বাচন (Assigned Companies):</label>
+                    <div id="userCompanyCheckboxes" class="flex flex-wrap gap-4 bg-slate-50 p-3.5 rounded-xl border border-slate-200 text-xs text-slate-700"></div>
+                </div>
+
+                <div class="flex items-center gap-3">
+                    <button type="submit" id="saveUserBtn" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl shadow-md shadow-blue-500/20 transition flex items-center gap-2">
+                        <i class="fa-solid fa-user-check"></i>
+                        <span>ইউজার সেভ করুন</span>
+                    </button>
+                    <button type="button" id="cancelEditBtn" onclick="resetUserForm()" class="hidden px-5 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-semibold rounded-xl transition">
+                        বাতিল করুন
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm">
+            <h2 class="text-base font-bold text-slate-800 mb-4 flex items-center gap-2">
+                <i class="fa-solid fa-users text-blue-600"></i>
+                <span>সকল ইউজারের তালিকা & এক্সেস সংশোধন</span>
+            </h2>
+            <div class="overflow-x-auto rounded-xl border border-slate-200 custom-scrollbar">
+                <table class="w-full text-left border-collapse text-xs">
+                    <thead>
+                        <tr class="bg-slate-100 text-slate-700 font-semibold border-b border-slate-200">
+                            <th class="p-3.5">নাম</th>
+                            <th class="p-3.5">ইউজারনেম</th>
+                            <th class="p-3.5">রোল</th>
+                            <th class="p-3.5">ফিচার এক্সেস</th>
+                            <th class="p-3.5">অনুমোদিত কোম্পানি</th>
+                            <th class="p-3.5 text-center">অ্যাকশন</th>
+                        </tr>
+                    </thead>
+                    <tbody id="userTableBody" class="divide-y divide-slate-200 text-slate-700">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB 6: Backup & Import -->
+    <div id="backupTab" class="space-y-6 tab-content hidden">
+        <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm">
+            <h2 class="text-base font-bold text-slate-800 mb-2 flex items-center gap-2">
+                <i class="fa-solid fa-file-export text-emerald-600"></i>
+                <span>এক্সেল ব্যাকআপ ডাউনলোড (Export Data)</span>
+            </h2>
+            <p class="text-xs text-slate-500 mb-4">সকল ড্যামেজ এন্ট্রি ও প্রডাক্ট ক্যাটালগ একটি ক্লিকেই এক্সেল শীটে ডাউনলোড করে রাখুন।</p>
+            <button onclick="exportToExcel()" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl shadow-md shadow-emerald-600/20 transition flex items-center gap-2">
+                <i class="fa-solid fa-download"></i>
+                <span>সমস্ত ডাটা ডাউনলোড করুন (.xlsx)</span>
+            </button>
+        </div>
+
+        <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm">
+            <h2 class="text-base font-bold text-slate-800 mb-2 flex items-center gap-2">
+                <i class="fa-solid fa-file-import text-amber-600"></i>
+                <span>এক্সেল ফাইল থেকে ডাটা আপলোড (Import Data)</span>
+            </h2>
+            <p class="text-xs text-slate-500 mb-4">পূর্বের ব্যাকআপকৃত ড্যামেজ ও প্রডাক্ট এক্সেল ফাইল আপলোড করে লোড করুন।</p>
+
+            <div class="space-y-4 max-w-md">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1.5">এক্সেল ফাইল সিলেক্ট করুন (.xlsx / .xls)</label>
+                    <input type="file" id="excelFile" accept=".xlsx, .xls, .csv" class="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-amber-50 file:text-amber-700 hover:file:bg-amber-100">
+                </div>
+                <button onclick="importFromExcel()" class="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold rounded-xl shadow-md shadow-amber-600/20 transition flex items-center gap-2">
+                    <i class="fa-solid fa-upload"></i>
+                    <span>এক্সেল থেকে ডাটা লোড করুন</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Firebase SDK Integration via Modules -->
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-app.js";
+    import { getFirestore, collection, getDocs, setDoc, doc } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyBKxrvYoLHfdrSEx8cDRHOSZmCSiYixW_Y",
+        authDomain: "gd-damage.firebaseapp.com",
+        projectId: "gd-damage",
+        storageBucket: "gd-damage.firebasestorage.app",
+        messagingSenderId: "576464111940",
+        appId: "1:576464111940:web:868d95487f5e3720b66f11",
+        measurementId: "G-5N92GKW6EV"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    window.db = db;
+    window.fsModule = { collection, getDocs, setDoc, doc };
+    
+    const badge = document.getElementById('firebaseConnectionBadge');
+    if (badge) {
+        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500"></span> Cloud Connected`;
+        badge.className = "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700 border border-emerald-200";
+    }
+
+    if(window.initCloudData) {
+        window.initCloudData();
+    }
+</script>
+
+<script>
+    // Core Application State
+    let companies = JSON.parse(localStorage.getItem('gm_companies')) || ['ACI Logistics', 'Dabur Bangladesh', 'Kodomo', 'Tasty Treat', 'Nivea'];
+    
+    // User Accounts - Admin helal/GoodMart11 & Staff staff1/1234 intact in DB
+    let users = JSON.parse(localStorage.getItem('gm_users')) || [
+        { name: 'Helal Admin', username: 'helal', password: 'GoodMart11', role: 'admin', permissions: { damage: true, product: true, settlement: true, backup: true }, assignedCompanies: ['ALL'] },
+        { name: 'Kamarpara Staff', username: 'staff1', password: '1234', role: 'staff', permissions: { damage: true, product: true, settlement: true, backup: false }, assignedCompanies: ['Dabur Bangladesh', 'Kodomo'] }
+    ];
+    
+    let products = JSON.parse(localStorage.getItem('gm_products')) || [
+        { company: 'Dabur Bangladesh', name: 'Dabur Red Paste 100g', mrp: 80, dp: 70, tp: 72, comment: 'Regular SKU' },
+        { company: 'Kodomo', name: 'Kodomo Baby Wipes 80s', mrp: 250, dp: 210, tp: 215, comment: 'Imported Item' }
+    ];
+    
+    let damages = JSON.parse(localStorage.getItem('gm_damages')) || [];
+    let settlements = JSON.parse(localStorage.getItem('gm_settlements')) || [];
+    let loggedInUser = null;
+
+    // Cloud Data Sync Initializer
+    window.initCloudData = async function() {
+        try {
+            if(!window.db || !window.fsModule) return;
+            const querySnapshot = await window.fsModule.getDocs(window.fsModule.collection(window.db, "goodmart_data"));
+            querySnapshot.forEach((docSnap) => {
+                const data = docSnap.data();
+                if(docSnap.id === 'state') {
+                    if(data.companies) companies = data.companies;
+                    if(data.users) users = data.users;
+                    if(data.products) products = data.products;
+                    if(data.damages) damages = data.damages;
+                    if(data.settlements) settlements = data.settlements;
+                    
+                    saveDataLocally();
+                    if(loggedInUser) {
+                        refreshDropdowns();
+                        renderAll();
+                    }
+                }
+            });
+        } catch(err) {
+            console.warn("Cloud Sync Read Warning:", err);
+        }
+    };
+
+    async function syncToCloud() {
+        saveDataLocally();
+        if(window.db && window.fsModule) {
+            try {
+                await window.fsModule.setDoc(window.fsModule.doc(window.db, "goodmart_data", "state"), {
+                    companies, users, products, damages, settlements, updatedAt: new Date().toISOString()
+                });
+            } catch(err) {
+                console.warn("Cloud Sync Write Warning:", err);
+            }
+        }
+    }
+
+    function saveDataLocally() {
+        localStorage.setItem('gm_companies', JSON.stringify(companies));
+        localStorage.setItem('gm_users', JSON.stringify(users));
+        localStorage.setItem('gm_products', JSON.stringify(products));
+        localStorage.setItem('gm_damages', JSON.stringify(damages));
+        localStorage.setItem('gm_settlements', JSON.stringify(settlements));
+    }
+
+    // Login Handler
+    function handleLogin(e) {
+        e.preventDefault();
+        const u = document.getElementById('loginUser').value.trim();
+        const p = document.getElementById('loginPass').value.trim();
+        const errorEl = document.getElementById('loginError');
+
+        const found = users.find(x => x.username === u && x.password === p);
+        if(found) {
+            if(errorEl) errorEl.classList.add('hidden');
+            loggedInUser = found;
+            document.getElementById('authScreen').classList.add('hidden');
+            document.getElementById('mainAppContainer').classList.remove('hidden');
+            document.getElementById('currentUserBadge').innerText = found.name;
+            document.getElementById('currentUserRole').innerText = found.role;
+            
+            applyUserPermissions();
+            refreshDropdowns();
+            renderAll();
+        } else {
+            if(errorEl) errorEl.classList.remove('hidden');
+        }
+    }
+
+    function logout() {
+        loggedInUser = null;
+        document.getElementById('authScreen').classList.remove('hidden');
+        document.getElementById('mainAppContainer').classList.add('hidden');
+        document.getElementById('loginUser').value = '';
+        document.getElementById('loginPass').value = '';
+    }
+
+    function getAllowedCompanies() {
+        if(!loggedInUser) return [];
+        if(loggedInUser.assignedCompanies && loggedInUser.assignedCompanies.includes('ALL')) return companies;
+        return companies.filter(c => loggedInUser.assignedCompanies && loggedInUser.assignedCompanies.includes(c));
+    }
+
+    function applyUserPermissions() {
+        const p = loggedInUser.permissions || { damage: true, product: true, settlement: true, backup: true };
+        
+        document.getElementById('btn-damageTab').style.display = p.damage ? 'inline-flex' : 'none';
+        document.getElementById('btn-productTab').style.display = p.product ? 'inline-flex' : 'none';
+        document.getElementById('btn-settlementTab').style.display = p.settlement ? 'inline-flex' : 'none';
+        document.getElementById('btn-backupTab').style.display = p.backup ? 'inline-flex' : 'none';
+        
+        const isAdmin = loggedInUser.role === 'admin';
+        document.getElementById('btn-companySetupTab').style.display = isAdmin ? 'inline-flex' : 'none';
+        document.getElementById('btn-userTab').style.display = isAdmin ? 'inline-flex' : 'none';
+
+        if(p.damage) switchTab('damageTab');
+        else if(p.product) switchTab('productTab');
+        else if(p.settlement) switchTab('settlementTab');
+    }
+
+    function switchTab(tabId) {
+        document.querySelectorAll('.tab-content').forEach(s => s.classList.add('hidden'));
+        document.querySelectorAll('.tab-btn').forEach(b => {
+            b.className = 'tab-btn px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap bg-white text-slate-600 hover:bg-slate-50 border border-slate-200 transition flex items-center gap-2';
+        });
+
+        const activeSec = document.getElementById(tabId);
+        if(activeSec) activeSec.classList.remove('hidden');
+
+        const btn = document.getElementById('btn-' + tabId);
+        if(btn) {
+            btn.className = 'tab-btn px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap bg-blue-600 text-white shadow-md shadow-blue-500/20 transition flex items-center gap-2';
+        }
+        refreshDropdowns();
+    }
+
+    function refreshDropdowns() {
+        const allowedComps = getAllowedCompanies();
+        ['dmgCompany', 'stlCompany', 'prodCompany'].forEach(id => {
+            const el = document.getElementById(id);
+            if(el) el.innerHTML = allowedComps.map(c => `<option value="${c}">${c}</option>`).join('');
+        });
+
+        const filterEl = document.getElementById('filterCompany');
+        if(filterEl) {
+            const currentVal = filterEl.value;
+            filterEl.innerHTML = `<option value="ALL">অনুমোদিত সকল কোম্পানি</option>` + allowedComps.map(c => `<option value="${c}">${c}</option>`).join('');
+            filterEl.value = allowedComps.includes(currentVal) ? currentVal : 'ALL';
+        }
+
+        loadProductDropdown();
+        renderCompanyTable();
+        renderUserTable();
+        renderProductTable();
+        renderUserCompanyCheckboxes();
+        updateSettlementClaimedAmount();
+    }
+
+    function handleTimeRangeChange() {
+        const range = document.getElementById('filterTimeRange').value;
+        const customFields = document.querySelectorAll('.custom-date-field');
+        if(range === 'CUSTOM') {
+            customFields.forEach(f => f.classList.remove('hidden'));
+        } else {
+            customFields.forEach(f => f.classList.add('hidden'));
+        }
+        renderDamageTable();
+    }
+
+    function resetFilters() {
+        document.getElementById('filterCompany').value = 'ALL';
+        document.getElementById('filterTimeRange').value = 'ALL';
+        document.getElementById('filterStartDate').value = '';
+        document.getElementById('filterEndDate').value = '';
+        handleTimeRangeChange();
+    }
+
+    function renderUserCompanyCheckboxes() {
+        const container = document.getElementById('userCompanyCheckboxes');
+        if(!container) return;
+        let html = `<label class="flex items-center gap-2 cursor-pointer font-bold"><input type="checkbox" id="comp-ALL" value="ALL" onchange="toggleAllCompanyCheckboxes(this)" class="rounded text-blue-600"> 🌐 সকল কোম্পানি (ALL Access)</label>`;
+        companies.forEach(c => { 
+            html += `<label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="user-comp-cb rounded text-blue-600" value="${c}"> ${c}</label>`; 
+        });
+        container.innerHTML = html;
+    }
+
+    function toggleAllCompanyCheckboxes(allCb) {
+        document.querySelectorAll('.user-comp-cb').forEach(cb => { 
+            cb.checked = allCb.checked; 
+            cb.disabled = allCb.checked; 
+        });
+    }
+
+    function updateSettlementClaimedAmount() {
+        const stlCompSelect = document.getElementById('stlCompany');
+        const claimedInput = document.getElementById('claimedAmount');
+        if(!stlCompSelect || !claimedInput) return;
+        const selectedComp = stlCompSelect.value;
+        const compDamages = damages.filter(d => d.company === selectedComp);
+        claimedInput.value = compDamages.reduce((acc, d) => acc + (d.dpVal || 0), 0);
+    }
+
+    // User Management logic
+    document.getElementById('userForm').onsubmit = (e) => {
+        e.preventDefault();
+        const editIdx = parseInt(document.getElementById('editUserIndex').value);
+        let selectedComps = [];
+        const allCb = document.getElementById('comp-ALL');
+        if(allCb && allCb.checked) selectedComps = ['ALL'];
+        else document.querySelectorAll('.user-comp-cb:checked').forEach(cb => selectedComps.push(cb.value));
+
+        if(selectedComps.length === 0) { alert('কমপক্ষে একটি কোম্পানি নির্বাচন করুন!'); return; }
+
+        const userData = {
+            name: document.getElementById('newUserName').value,
+            username: document.getElementById('newUserUsername').value.trim(),
+            password: document.getElementById('newUserPassword').value.trim(),
+            role: document.getElementById('newUserRole').value,
+            permissions: {
+                damage: document.getElementById('permDamage').checked,
+                product: document.getElementById('permProduct').checked,
+                settlement: document.getElementById('permSettlement').checked,
+                backup: document.getElementById('permBackup').checked
+            },
+            assignedCompanies: selectedComps
+        };
+
+        if(editIdx === -1) {
+            if(users.some(u => u.username === userData.username)) { alert('ইউজারনেম আগেই বিদ্যমান!'); return; }
+            users.push(userData);
+        } else {
+            users[editIdx] = userData;
+        }
+        syncToCloud();
+        resetUserForm();
+        renderUserTable();
+        alert('ইউজার সংরক্ষণ সফল হয়েছে!');
+    };
+
+    function editUserAccess(index) {
+        const u = users[index];
+        document.getElementById('editUserIndex').value = index;
+        document.getElementById('userFormTitle').innerText = `ইউজার পারমিশন এডিট: ${u.name}`;
+        document.getElementById('newUserName').value = u.name;
+        document.getElementById('newUserUsername').value = u.username;
+        document.getElementById('newUserPassword').value = u.password;
+        document.getElementById('newUserRole').value = u.role;
+        
+        document.getElementById('permDamage').checked = u.permissions ? u.permissions.damage : true;
+        document.getElementById('permProduct').checked = u.permissions ? u.permissions.product : true;
+        document.getElementById('permSettlement').checked = u.permissions ? u.permissions.settlement : true;
+        document.getElementById('permBackup').checked = u.permissions ? u.permissions.backup : false;
+
+        const isAll = u.assignedCompanies && u.assignedCompanies.includes('ALL');
+        const allCb = document.getElementById('comp-ALL');
+        if(allCb) { allCb.checked = isAll; toggleAllCompanyCheckboxes(allCb); }
+        if(!isAll && u.assignedCompanies) {
+            document.querySelectorAll('.user-comp-cb').forEach(cb => { cb.checked = u.assignedCompanies.includes(cb.value); });
+        }
+        document.getElementById('saveUserBtn').innerHTML = `<i class="fa-solid fa-pen-to-square"></i> <span>আপডেট করুন</span>`;
+        document.getElementById('cancelEditBtn').classList.remove('hidden');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function resetUserForm() {
+        document.getElementById('editUserIndex').value = "-1";
+        document.getElementById('userFormTitle').innerText = "নতুন ইউজার তৈরি / পারমিশন এডিট করুন";
+        document.getElementById('userForm').reset();
+        document.getElementById('saveUserBtn').innerHTML = `<i class="fa-solid fa-user-check"></i> <span>ইউজার সেভ করুন</span>`;
+        document.getElementById('cancelEditBtn').classList.add('hidden');
+        const allCb = document.getElementById('comp-ALL');
+        if(allCb) { allCb.checked = false; toggleAllCompanyCheckboxes(allCb); }
+    }
+
+    function renderUserTable() {
+        const tbody = document.getElementById('userTableBody');
+        if(!tbody) return;
+        tbody.innerHTML = users.map((u, index) => `
+            <tr class="hover:bg-slate-50 border-b border-slate-200">
+                <td class="p-3.5 font-bold text-slate-800">${u.name}</td>
+                <td class="p-3.5">${u.username}</td>
+                <td class="p-3.5"><span class="px-2 py-1 rounded-md text-[10px] font-bold ${u.role === 'admin' ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}">${u.role.toUpperCase()}</span></td>
+                <td class="p-3.5 text-[11px] text-slate-500">
+                    ড্যামেজ: ${u.permissions?.damage ? '✔️' : '❌'} | পণ্য: ${u.permissions?.product ? '✔️' : '❌'} | স্টেটমেন্ট: ${u.permissions?.settlement ? '✔️' : '❌'}
+                </td>
+                <td class="p-3.5 font-semibold text-slate-600 text-[11px]">${u.assignedCompanies ? u.assignedCompanies.join(', ') : 'N/A'}</td>
+                <td class="p-3.5 text-center">
+                    <button class="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-[11px] font-medium mr-1" onclick="editUserAccess(${index})">✏️ এডিট</button>
+                    ${u.username !== 'helal' ? `<button class="px-2.5 py-1 bg-red-600 hover:bg-red-700 text-white rounded-lg text-[11px] font-medium" onclick="deleteUser(${index})">🗑️ ডিলিট</button>` : ''}
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    function deleteUser(index) {
+        if(confirm('এই ইউজার একাউন্টটি মুছে ফেলতে চান?')) {
+            users.splice(index, 1);
+            syncToCloud();
+            renderUserTable();
+        }
+    }
+
+    function renderCompanyTable() {
+        const tbody = document.getElementById('companyTableBody');
+        if(!tbody) return;
+        tbody.innerHTML = companies.map((comp, index) => `
+            <tr class="hover:bg-slate-50 border-b border-slate-200">
+                <td class="p-3.5 font-bold text-slate-800">${comp}</td>
+                <td class="p-3.5 text-center"><button class="px-2.5 py-1 bg-red-600 hover:bg-red-700 text-white rounded-lg text-[11px] font-medium" onclick="deleteCompany(${index})">🗑️ ডিলিট</button></td>
+            </tr>
+        `).join('');
+    }
+
+    function deleteCompany(index) {
+        if(confirm('কোম্পানিটি মুছে ফেলতে চান?')) {
+            companies.splice(index, 1);
+            syncToCloud();
+            refreshDropdowns();
+            renderAll();
+        }
+    }
+
+    function loadProductDropdown() {
+        const selectedComp = document.getElementById('dmgCompany').value;
+        const prodSelect = document.getElementById('dmgProduct');
+        const compProds = products.filter(p => p.company === selectedComp);
+        if(prodSelect) prodSelect.innerHTML = compProds.map(p => `<option value="${p.name}">${p.name} (DP: ৳${p.dp})</option>`).join('');
+    }
+
+    function renderProductTable() {
+        const tbody = document.getElementById('productTableBody');
+        if(!tbody) return;
+        const allowedComps = getAllowedCompanies();
+        const visibleProds = products.filter(p => allowedComps.includes(p.company));
+        tbody.innerHTML = visibleProds.map(p => `
+            <tr class="hover:bg-slate-50 border-b border-slate-200">
+                <td class="p-3.5 font-bold text-slate-800">${p.company}</td>
+                <td class="p-3.5 font-medium">${p.name}</td>
+                <td class="p-3.5">৳ ${p.mrp}</td>
+                <td class="p-3.5 font-semibold text-blue-600">৳ ${p.dp}</td>
+                <td class="p-3.5">৳ ${p.tp}</td>
+                <td class="p-3.5 text-slate-500">${p.comment || '-'}</td>
+            </tr>
+        `).join('');
+    }
+
+    document.getElementById('companyForm').onsubmit = (e) => {
+        e.preventDefault();
+        const name = document.getElementById('compName').value.trim();
+        if(name && !companies.includes(name)) {
+            companies.push(name);
+            syncToCloud();
+            document.getElementById('compName').value = '';
+            refreshDropdowns();
+            alert('নতুন কোম্পানি যোগ হয়েছে!');
+        }
+    };
+
+    document.getElementById('productForm').onsubmit = (e) => {
+        e.preventDefault();
+        products.push({
+            company: document.getElementById('prodCompany').value,
+            name: document.getElementById('prodName').value,
+            mrp: parseFloat(document.getElementById('prodMRP').value) || 0,
+            dp: parseFloat(document.getElementById('prodDP').value) || 0,
+            tp: parseFloat(document.getElementById('prodTP').value) || 0,
+            comment: document.getElementById('prodComment').value
+        });
+        syncToCloud();
+        e.target.reset();
+        refreshDropdowns();
+        alert('নতুন পণ্য যোগ করা হয়েছে!');
+    };
+
+    document.getElementById('damageForm').onsubmit = (e) => {
+        e.preventDefault();
+        const comp = document.getElementById('dmgCompany').value;
+        const prodName = document.getElementById('dmgProduct').value;
+        const prod = products.find(p => p.company === comp && p.name === prodName) || { dp: 0, mrp: 0, tp: 0 };
+        const qty = parseInt(document.getElementById('dmgQty').value);
+
+        damages.push({
+            company: comp, product: prodName, qty: qty,
+            reason: document.getElementById('dmgReason').value,
+            date: document.getElementById('dmgDate').value,
+            mrp: prod.mrp, dp: prod.dp, tp: prod.tp, dpVal: prod.dp * qty
+        });
+        syncToCloud();
+        e.target.reset();
+        document.getElementById('dmgDate').value = new Date().toISOString().split('T')[0];
+        renderAll();
+        alert('ড্যামেজ এন্ট্রি সফল হয়েছে!');
+    };
+
+    document.getElementById('settlementForm').onsubmit = (e) => {
+        e.preventDefault();
+        const stlCompany = document.getElementById('stlCompany').value;
+        const claimedVal = parseFloat(document.getElementById('claimedAmount').value) || 0;
+        const firstReceived = parseFloat(document.getElementById('receivedAmount').value) || 0;
+
+        if(claimedVal <= 0) { alert('সেটেলমেন্ট করার জন্য কোনো ড্যামেজ এন্ট্রি নেই!'); return; }
+
+        const statementItems = damages.filter(d => d.company === stlCompany);
+        const stlRecord = {
+            id: Date.now(), company: stlCompany,
+            date: document.getElementById('stlDate').value,
+            claimed: claimedVal,
+            payments: firstReceived > 0 ? [{date: document.getElementById('stlDate').value, amount: firstReceived, note: document.getElementById('stlNote').value || 'প্রাথমিক কিস্তি'}] : [],
+            items: statementItems
+        };
+
+        settlements.push(stlRecord);
+        damages = damages.filter(d => d.company !== stlCompany);
+        syncToCloud();
+
+        e.target.reset();
+        document.getElementById('stlDate').value = new Date().toISOString().split('T')[0];
+        renderAll();
+        exportStatementExcel(stlRecord.id);
+        alert('স্টেটমেন্ট জেনারেট ও ড্যামেজ ক্লিয়ার সম্পন্ন হয়েছে!');
+    };
+
+    function addInstallment(stlId) {
+        const amountStr = prompt('কত টাকা কিস্তি পরিশোধ হয়েছে?');
+        if(!amountStr) return;
+        const amount = parseFloat(amountStr);
+        if(isNaN(amount) || amount <= 0) { alert('সঠিক পরিমাণ লিখুন!'); return; }
+        const note = prompt('কিস্তির নোট দিন:', 'পরবর্তী কিস্তি') || 'কিস্তি পরিশোধ';
+
+        const stl = settlements.find(s => s.id === stlId);
+        if(stl) {
+            if(!stl.payments) stl.payments = [];
+            stl.payments.push({ date: new Date().toISOString().split('T')[0], amount: amount, note: note });
+            syncToCloud();
+            renderAll();
+            alert('কিস্তি রিসিভ সংরক্ষণ করা হয়েছে!');
+        }
+    }
+
+    function exportStatementExcel(stlId) {
+        const stl = settlements.find(s => s.id === stlId);
+        if(!stl) return;
+        const wb = XLSX.utils.book_new();
+        let wsData = [
+            ["GOOD MART ENTERPRISE - DAMAGE SETTLEMENT STATEMENT"],
+            ["Company Name:", stl.company], ["Statement Date:", stl.date], ["Total Claimed (DP):", stl.claimed], [],
+            ["--- DAMAGED PRODUCTS LIST ---"], ["Date", "Product", "Qty", "Reason", "MRP", "DP", "TP", "Total DP"]
+        ];
+        stl.items.forEach(i => { wsData.push([i.date, i.product, i.qty, i.reason, i.mrp, i.dp, i.tp, i.dpVal]); });
+        wsData.push([], ["--- PAYMENT HISTORY ---"], ["Date", "Paid Amount", "Note"]);
+        let totalPaid = 0;
+        if(stl.payments) { stl.payments.forEach(p => { totalPaid += p.amount; wsData.push([p.date, p.amount, p.note]); }); }
+        wsData.push([], ["Total Paid:", totalPaid], ["Due Amount:", stl.claimed - totalPaid]);
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(wsData), "Statement");
+        XLSX.writeFile(wb, `Statement_${stl.company}_${stl.date}.xlsx`);
+    }
+
+    function exportToExcel() {
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(damages), "Damages");
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(products), "Products");
+        XLSX.writeFile(wb, "GoodMart_FullBackup.xlsx");
+    }
+
+    function importFromExcel() {
+        const fileInput = document.getElementById('excelFile');
+        if(fileInput.files.length === 0) { alert('একটি এক্সেল ফাইল নির্বাচন করুন!'); return; }
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, {type: 'array'});
+            if(workbook.Sheets['Products']) { products = XLSX.utils.sheet_to_json(workbook.Sheets['Products']); }
+            if(workbook.Sheets['Damages']) { damages = XLSX.utils.sheet_to_json(workbook.Sheets['Damages']); }
+            syncToCloud();
+            renderAll(); refreshDropdowns(); alert('ডাটা ইম্পোর্ট সফল হয়েছে!');
+        };
+        reader.readAsArrayBuffer(fileInput.files[0]);
+    }
+
+    function renderAll() {
+        const allowedComps = getAllowedCompanies();
+        const visibleDamages = damages.filter(d => allowedComps.includes(d.company));
+        const visibleSettlements = settlements.filter(s => allowedComps.includes(s.company));
+
+        let totalDmgVal = visibleDamages.reduce((acc, d) => acc + (d.dpVal || 0), 0);
+        let totalClaimed = visibleSettlements.reduce((acc, s) => acc + s.claimed, 0);
+        let totalReceived = 0;
+        visibleSettlements.forEach(s => { if(s.payments) totalReceived += s.payments.reduce((pAcc, p) => pAcc + p.amount, 0); });
+        let pending = totalClaimed - totalReceived;
+
+        document.getElementById('totalDamageVal').innerText = `৳ ${totalDmgVal.toLocaleString()}`;
+        document.getElementById('totalReturnedVal').innerText = `৳ ${totalClaimed.toLocaleString()}`;
+        document.getElementById('totalSettledVal').innerText = `৳ ${totalReceived.toLocaleString()}`;
+        document.getElementById('totalPendingVal').innerText = `৳ ${pending.toLocaleString()}`;
+
+        renderDamageTable();
+
+        document.getElementById('settlementTableBody').innerHTML = visibleSettlements.map(s => {
+            let paid = s.payments ? s.payments.reduce((acc, p) => acc + p.amount, 0) : 0;
+            let due = s.claimed - paid;
+            let statusBadge = due <= 0 
+                ? '<span class="px-2 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">Paid</span>' 
+                : '<span class="px-2 py-1 rounded-full text-[10px] font-bold bg-red-100 text-red-700">Due</span>';
+            return `
+                <tr class="hover:bg-slate-50 border-b border-slate-200">
+                    <td class="p-3.5">${s.date}</td>
+                    <td class="p-3.5 font-bold text-slate-800">${s.company}</td>
+                    <td class="p-3.5">৳ ${s.claimed.toLocaleString()}</td>
+                    <td class="p-3.5 font-semibold text-emerald-600">৳ ${paid.toLocaleString()}</td>
+                    <td class="p-3.5 font-semibold text-red-600">৳ ${due.toLocaleString()}</td>
+                    <td class="p-3.5">${statusBadge}</td>
+                    <td class="p-3.5 text-center flex items-center justify-center gap-1.5">
+                        <button class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-medium" onclick="addInstallment(${s.id})">+ কিস্তি</button>
+                        <button class="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-[11px] font-medium" onclick="exportStatementExcel(${s.id})">📥 স্টেটমেন্ট</button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    function renderDamageTable() {
+        const allowedComps = getAllowedCompanies();
+        const selectedCompany = document.getElementById('filterCompany').value;
+        const timeRange = document.getElementById('filterTimeRange').value;
+        const startDate = document.getElementById('filterStartDate').value;
+        const endDate = document.getElementById('filterEndDate').value;
+        const todayStr = new Date().toISOString().split('T')[0];
+
+        let filtered = damages.filter(d => allowedComps.includes(d.company));
+        if(selectedCompany !== 'ALL') filtered = filtered.filter(d => d.company === selectedCompany);
+
+        if(timeRange === 'TODAY') filtered = filtered.filter(d => d.date === todayStr);
+        else if(timeRange === 'CUSTOM') {
+            if(startDate) filtered = filtered.filter(d => d.date >= startDate);
+            if(endDate) filtered = filtered.filter(d => d.date <= endDate);
+        }
+
+        let filteredTotalVal = filtered.reduce((acc, d) => acc + (d.dpVal || 0), 0);
+        document.getElementById('filteredItemsCount').innerText = `মোট এন্ট্রি: ${filtered.length} টি`;
+        document.getElementById('filteredTotalDP').innerText = `ফিল্টারকৃত মোট DP মূল্য: ৳ ${filteredTotalVal.toLocaleString()}`;
+
+        document.getElementById('damageTableBody').innerHTML = filtered.map((d) => {
+            const realIndex = damages.indexOf(d);
+            return `
+                <tr class="hover:bg-slate-50 border-b border-slate-200">
+                    <td class="p-3.5">${d.date}</td>
+                    <td class="p-3.5 font-bold text-slate-800">${d.company}</td>
+                    <td class="p-3.5 font-medium">${d.product}</td>
+                    <td class="p-3.5 font-bold">${d.qty} টি</td>
+                    <td class="p-3.5"><span class="px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-700">${d.reason}</span></td>
+                    <td class="p-3.5">৳ ${d.dp}</td>
+                    <td class="p-3.5 font-bold text-blue-600">৳ ${d.dpVal || 0}</td>
+                    <td class="p-3.5 text-center"><button class="px-2.5 py-1 bg-red-600 hover:bg-red-700 text-white rounded-lg text-[11px] font-medium" onclick="deleteDamage(${realIndex})">🗑️</button></td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    function deleteDamage(index) {
+        if(confirm('ড্যামেজ এন্ট্রিটি মুছে ফেলতে চান?')) {
+            damages.splice(index, 1);
+            syncToCloud();
+            renderAll();
+        }
+    }
+
+    // Initialize Default Dates
+    const today = new Date().toISOString().split('T')[0];
+    if(document.getElementById('dmgDate')) document.getElementById('dmgDate').value = today;
+    if(document.getElementById('stlDate')) document.getElementById('stlDate').value = today;
+</script>
+</body>
+</html>
+```
