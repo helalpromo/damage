@@ -582,17 +582,18 @@
     
     const badge = document.getElementById('firebaseConnectionBadge');
     if (badge) {
-        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500"></span> Cloud Connected`;
+        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500"></span> Cloud Sync Active`;
         badge.className = "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700 border border-emerald-200";
     }
 
+    // Auto-fetch data right on initial load
     if(window.initCloudData) {
         window.initCloudData();
     }
 </script>
 
 <script>
-    // Core Application State
+    // Global State Initializers
     let companies = JSON.parse(localStorage.getItem('gm_companies')) || ['ACI Logistics', 'Dabur Bangladesh', 'Kodomo', 'Tasty Treat', 'Nivea'];
     
     let users = JSON.parse(localStorage.getItem('gm_users')) || [
@@ -607,9 +608,26 @@
     
     let damages = JSON.parse(localStorage.getItem('gm_damages')) || [];
     let settlements = JSON.parse(localStorage.getItem('gm_settlements')) || [];
-    let loggedInUser = null;
+    let loggedInUser = JSON.parse(localStorage.getItem('gm_active_session')) || null;
 
-    // Cloud Data Sync Initializer
+    // Check Active Session on Boot
+    window.addEventListener('DOMContentLoaded', () => {
+        if(loggedInUser) {
+            restoreLoggedInSession();
+        }
+    });
+
+    function restoreLoggedInSession() {
+        document.getElementById('authScreen').classList.add('hidden');
+        document.getElementById('mainAppContainer').classList.remove('hidden');
+        document.getElementById('currentUserBadge').innerText = loggedInUser.name;
+        document.getElementById('currentUserRole').innerText = loggedInUser.role;
+        applyUserPermissions();
+        refreshDropdowns();
+        renderAll();
+    }
+
+    // Firebase Cloud Data Initializer & Recovery
     window.initCloudData = async function() {
         try {
             if(!window.db || !window.fsModule) return;
@@ -624,7 +642,15 @@
                     if(data.settlements) settlements = data.settlements;
                     
                     saveDataLocally();
+                    
+                    // If user was logged in, immediately update UI with cloud data
                     if(loggedInUser) {
+                        // Refresh session object if user details updated
+                        const freshUser = users.find(u => u.username === loggedInUser.username);
+                        if(freshUser) {
+                            loggedInUser = freshUser;
+                            localStorage.setItem('gm_active_session', JSON.stringify(freshUser));
+                        }
                         refreshDropdowns();
                         renderAll();
                     }
@@ -667,14 +693,8 @@
         if(found) {
             if(errorEl) errorEl.classList.add('hidden');
             loggedInUser = found;
-            document.getElementById('authScreen').classList.add('hidden');
-            document.getElementById('mainAppContainer').classList.remove('hidden');
-            document.getElementById('currentUserBadge').innerText = found.name;
-            document.getElementById('currentUserRole').innerText = found.role;
-            
-            applyUserPermissions();
-            refreshDropdowns();
-            renderAll();
+            localStorage.setItem('gm_active_session', JSON.stringify(found));
+            restoreLoggedInSession();
         } else {
             if(errorEl) errorEl.classList.remove('hidden');
         }
@@ -682,6 +702,7 @@
 
     function logout() {
         loggedInUser = null;
+        localStorage.removeItem('gm_active_session');
         document.getElementById('authScreen').classList.remove('hidden');
         document.getElementById('mainAppContainer').classList.add('hidden');
         document.getElementById('loginUser').value = '';
